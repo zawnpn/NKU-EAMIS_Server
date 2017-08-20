@@ -8,7 +8,7 @@
 
 import cgi
 import json
-from nkueamis import *
+from nkueamis-web import *
 
 # import sys
 # import io
