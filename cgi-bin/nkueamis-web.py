@@ -306,8 +306,8 @@ def struct_exam_table(exam_info, semester):
 # main
 def main():
     if test_net():
-        username = '1510109'
-        password = 'zwp19971130'
+        username = ''
+        password = ''
         sess = log_in(username, password)
 
         print(get_std_detail(sess))
