@@ -1,10 +1,10 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
-# @Time    : 2017-08-20 12:17
+# @Time    : 2017-07-01 11:03
 # @Author  : Wanpeng Zhang
 # @Site    : http://www.oncemath.com
-# @File    : main.py
-# @Project : nkueamis-web
+# @File    : nkueamis.py
+# @Project : NKU-EAMIS
 
 
 import re
@@ -176,7 +176,7 @@ def get_std_course_id(resp):
 # get information of courses
 def get_course_info(resp):
     teacher_pattern = re.compile('var teachers = \[{id:.*?,name:"(.+?)",lab:.*?}\];')
-    course_info_pattern = re.compile('\)","(.+?)\(.+?\)",".*?","(.*?)","0*1*0*"')
+    course_info_pattern = re.compile('\)","(.+?)\(\d+\)",".*?","(.+?)","\d+000"')
     course_time_pattern = re.compile('=(.+?)\*unitCount\+(.+?);')
     teacher_name = teacher_pattern.findall(resp.content.decode())
     course_info_iter = course_info_pattern.finditer(resp.content.decode())
@@ -185,12 +185,13 @@ def get_course_info(resp):
     course_pos = [i.start() for i in course_info_iter]
     course_info = [list(i) for i in course_info]
     course = []
-    i = 0
-    if course_pos:
+    if len(course_pos)>1:
         for i in range(len(course_pos) - 1):
-            course.append([tuple_conv(i) for i in course_time_pattern.findall(resp.content.decode(),
+            course.append([tuple_conv(j) for j in course_time_pattern.findall(resp.content.decode(),
                                                                               course_pos[i], course_pos[i+1])])
-        course.append([tuple_conv(i) for i in course_time_pattern.findall(resp.content.decode(), course_pos[i+1])])
+        course.append([tuple_conv(j) for j in course_time_pattern.findall(resp.content.decode(), course_pos[i+1])])
+    else:
+        course.append([tuple_conv(j) for j in course_time_pattern.findall(resp.content.decode(),course_pos[0])])
     result = []
     for i in range(len(course_info)):
         result.append(course_info[i] + [teacher_name[i]] + course[i])
@@ -226,10 +227,43 @@ def get_course_table(sess, semester_id=None):
     course_data1 = struct_course_data(sess, '1', semester_id)
     courses1 = get_course_info(sess.post(COURSETABLE_URL, data=course_data1))
     sess.get(HOME_URL + '/eams/home.action')
-    course_data2 = struct_course_data(sess, '2', semester_id)
-    courses2 = get_course_info(sess.post(COURSETABLE_URL, data=course_data2))
-    courses = courses1 + courses2
+    #course_data2 = struct_course_data(sess, '2', semester_id)
+    #courses2 = get_course_info(sess.post(COURSETABLE_URL, data=course_data2))
+    #courses = courses1 + courses2
+    courses = courses1
+    for c in courses:
+        i = 4
+        while(i<len(c)):
+            if c[i][0] == c[3][0] and c[i][1] > c[i-1][1]:
+                i += 1
+            else:
+                c.pop(i)
     return courses
+
+
+def get_course_table_json(sess, semester_id=None):
+    course_data1 = struct_course_data(sess, '1', semester_id)
+    courses1 = get_course_info(sess.post(COURSETABLE_URL, data=course_data1))
+    sess.get(HOME_URL + '/eams/home.action')
+    #course_data2 = struct_course_data(sess, '2', semester_id)
+    #courses2 = get_course_info(sess.post(COURSETABLE_URL, data=course_data2))
+    courses = courses1
+    for c in courses:
+        i = 4
+        while(i<len(c)):
+            if c[i][0] == c[3][0] and c[i][1] > c[i-1][1]:
+                i += 1
+            else:
+                c.pop(i)
+    result = []
+    for c in courses:
+        tmp = {}
+        tmp['day'] = c[3][0]+1
+        tmp['begin'] = c[3][1]+1
+        tmp['len'] = c[-1][1]-c[3][1]+1
+        tmp['name'] = c[0] + '@' + c[1]
+        result.append(tmp)
+    return result
 
 
 def struct_course_table(course_info, semester):
@@ -264,7 +298,7 @@ def get_exam_id(sess, semester_id):
     if exam_id:
         return exam_id[0]
     else:
-        print('所选学期暂无考试安排.\n')
+        print('暂无考试安排\n')
         exit()
 
 
@@ -310,18 +344,7 @@ def main():
         password = ''
         sess = log_in(username, password)
 
-        print(get_std_detail(sess))
-
-        # response = sess.get(GRADE_URL)
-        # grade = get_specified_grade(response, 'BCD')
-        # print(grade)
-        # print(grade_calc(grade))
-
-        # semester_id = determine_semester_id(sess, '2016-2017:1')
-        # print(get_course_table(sess, semester_id))
-
-        # semester_id = determine_semester_id(sess, '2016-2017:2')
-        # print(get_exam_table(sess, semester_id))
+        # print(get_std_detail(sess))
 
     else:
         print('Failed to connect the NKU-EAMIS system!\n')
